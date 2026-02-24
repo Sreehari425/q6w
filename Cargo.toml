@@ -1,0 +1,33 @@
+[package]
+name = "q6w"
+version = "0.1.0"
+edition = "2024"
+authors = ["Sreehari Anil <sreehari7102008@gmail.com>"]
+description = "Wayland video wallpaper: GStreamer decode, wlr-layer-shell surface, minimal RAM footprint."
+license = "AGPL-3.0-only"
+repository = "https://github.com/sreehari/q6w"
+homepage = "https://github.com/sreehari/q6w"
+keywords = ["wayland", "wallpaper", "gstreamer", "layer-shell"]
+categories = ["multimedia", "command-line-utilities"]
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Wayland client (ALL display/protocol work done in Rust)
+wayland-client   = "0.31"
+wayland-backend  = { version = "0.3", features = ["client_system"] }
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+
+libc    = "0.2"
+
+# GStreamer — video decode in background threads, appsink pulls frames
+gstreamer        = "0.23"
+gstreamer-app    = "0.23"
+gstreamer-video  = "0.23"
+
+# GPU rendering — upload decoded frames directly to GPU texture (no to_vec)
+wgpu             = "24"
+raw-window-handle = "0.6"
+pollster = "0.3"
+anyhow   = "1"
