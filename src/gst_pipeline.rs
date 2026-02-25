@@ -20,6 +20,8 @@ pub struct Pipeline {
     pipeline: gst::Pipeline,
     appsink: gst_app::AppSink,
     bus: gst::Bus,
+    /// `true` when VAAPI was unavailable and the software path is active.
+    is_software: bool,
 }
 
 impl Pipeline {
@@ -46,8 +48,13 @@ impl Pipeline {
             eprintln!("q6w: using VAAPI hardware decoder");
             return p;
         }
-        eprintln!("q6w: WARNING: VAAPI not available — falling back to software decoder");
-        eprintln!("q6w:   This will use significantly more RAM and CPU, especially at 4K.");
+
+        // No VAAPI — warn and continue with software decode
+        eprintln!("q6w: WARNING: VAAPI hardware decoding is not available.");
+        eprintln!("q6w:   Possible causes: missing VA-API driver, NVIDIA without nouveau/nvidia-vaapi-driver,");
+        eprintln!("q6w:   or unsupported GPU. Run `vainfo` to diagnose.");
+        eprintln!("q6w:   Falling back to software decoding (higher CPU and RAM usage).");
+
         Self::build_software(&uri, enable_audio, volume, width, height, fps)
     }
 
@@ -188,6 +195,7 @@ impl Pipeline {
             pipeline,
             appsink,
             bus,
+            is_software: false,
         })
     }
 
@@ -329,6 +337,7 @@ impl Pipeline {
             pipeline,
             appsink,
             bus,
+            is_software: true,
         }
     }
 
@@ -394,6 +403,11 @@ impl Pipeline {
     }
 
     // ── Playback control ─────────────────────────────────────────────────────
+
+    /// Returns `true` if the pipeline is using the CPU software decoder.
+    pub fn is_software_fallback(&self) -> bool {
+        self.is_software
+    }
 
     pub fn play(&self) {
         self.pipeline.set_state(gst::State::Playing).ok();

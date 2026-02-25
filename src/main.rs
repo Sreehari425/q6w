@@ -50,6 +50,14 @@ struct Args {
     /// Target framerate limit (e.g. 30). Drops frames to hit the limit.
     #[arg(long, value_name = "FPS")]
     fps: Option<i32>,
+
+    /// Disable the software-fallback guard rail.
+    ///
+    /// By default, q6w refuses to software-decode videos larger than
+    /// 1920×1080 without VAAPI, because CPU and memory usage can be
+    /// extreme.  Pass this flag to allow it anyway.
+    #[arg(long)]
+    no_fallback_guard: bool,
 }
 
 // ─── Wayland raw-pointer extraction ─────────────────────────────────────────
@@ -158,6 +166,39 @@ fn main() {
 
     // ── 4. Start GStreamer pipeline ───────────────────────────────────────────
     let pipeline = Pipeline::new(&path_str, enable_audio, volume, state.buf_w, state.buf_h, args.fps);
+
+    // ── 4a. Software-fallback guard rail ──────────────────────────────────────
+    //
+    // Without VAAPI, decoding high-resolution video on the CPU can saturate
+    // all cores and consume multiple GB of RAM.  Block by default; the user
+    // can override with --no-fallback-guard.
+    if pipeline.is_software_fallback() {
+        let pixels = (state.buf_w as u64) * (state.buf_h as u64);
+        let is_high_res = pixels > 1920 * 1080; // anything above Full HD
+
+        if is_high_res && !args.no_fallback_guard {
+            eprintln!();
+            eprintln!(
+                "q6w: Software decoding at {}×{} is not recommended.",
+                state.buf_w, state.buf_h
+            );
+            eprintln!(
+                "q6w: Without VAAPI, high-resolution decode will cause excessive CPU"
+            );
+            eprintln!(
+                "q6w: and memory usage. Consider downscaling the video or installing"
+            );
+            eprintln!(
+                "q6w: the appropriate VA-API driver for your GPU."
+            );
+            eprintln!();
+            eprintln!(
+                "q6w: To proceed anyway, re-run with --no-fallback-guard."
+            );
+            std::process::exit(1);
+        }
+    }
+
     pipeline.play();
 
     // ── 5. Main event loop ───────────────────────────────────────────────────
