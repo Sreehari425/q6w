@@ -5,8 +5,8 @@ edition = "2024"
 authors = ["Sreehari Anil <sreehari7102008@gmail.com>"]
 description = "Wayland video wallpaper: GStreamer decode, wlr-layer-shell surface, minimal RAM footprint."
 license = "AGPL-3.0-only"
-repository = "https://github.com/sreehari/q6w"
-homepage = "https://github.com/sreehari/q6w"
+repository = "https://github.com/Sreehari425/q6w"
+homepage = "https://github.com/Sreehari425/q6w"
 keywords = ["wayland", "wallpaper", "gstreamer", "layer-shell"]
 categories = ["multimedia", "command-line-utilities"]
 

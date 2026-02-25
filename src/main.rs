@@ -20,8 +20,6 @@ use app::State;
 use gpu_renderer::GpuRenderer;
 use gst_pipeline::Pipeline;
 
-// ─── CLI ─────────────────────────────────────────────────────────────────────
-
 /// q6w — GStreamer video wallpaper for Wayland
 ///
 /// Plays a video file as the desktop background on any compositor that
@@ -63,8 +61,6 @@ struct Args {
     license: bool,
 }
 
-// ─── Wayland raw-pointer extraction ─────────────────────────────────────────
-
 /// Return the raw `wl_display *` C pointer.
 ///
 /// On Linux, wayland-client uses the system (libwayland-client.so) backend
@@ -85,8 +81,6 @@ fn surface_ptr(state: &State) -> *mut c_void {
         .cast()
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
-
 fn main() {
     let args = Args::parse();
 
@@ -97,7 +91,7 @@ fn main() {
         println!();
         println!("Source code:");
         println!("  GitHub   : https://github.com/Sreehari425/q6w");
-        println!("  Codeberg : https://codeberg.org/sreehari425/q6w");
+        println!("  Codeberg : https://codeberg.org/sreehari425/q6w (mirror)");
         std::process::exit(0);
     }
 
@@ -115,7 +109,6 @@ fn main() {
     let enable_audio = args.audio;
     let volume = args.volume.clamp(0.0, 1.0) as f64;
 
-    // ── 1. Connect to the Wayland compositor ─────────────────────────────────
     let conn = Connection::connect_to_env()
         .expect("q6w: cannot connect to Wayland — is WAYLAND_DISPLAY set?");
 
@@ -126,9 +119,8 @@ fn main() {
     let mut state = State::new();
 
     state.compositor = globals.bind(&qh, 4..=6, ()).ok();
-    // wl_shm is intentionally NOT bound: the GPU path renders via wgpu/Vulkan
-    // directly onto the wl_surface swapchain.  If state.shm stays None, the
-    // configure handler in app.rs will skip ShmPool creation (~120 MB saved).
+    // wl_shm intentionally NOT bound: GPU rendering via wgpu/Vulkan eliminates
+    // the need for ShmPool (~120 MB saved).
     state.layer_shell = globals.bind::<ZwlrLayerShellV1, _, _>(&qh, 1..=4, ()).ok();
     state.toplevel_mgr = globals
         .bind::<ZwlrForeignToplevelManagerV1, _, _>(&qh, 1..=3, ())
@@ -150,7 +142,6 @@ fn main() {
         );
     }
 
-    // ── 2. Create layer surface + wait for configure ──────────────────────────
     if !state.create_layer_surface(&qh) {
         std::process::exit(1);
     }
@@ -164,11 +155,8 @@ fn main() {
         std::process::exit(1);
     }
 
-    // ── 3. Create wgpu GPU renderer ───────────────────────────────────────────
-    //
-    // Created AFTER configure so we have the exact monitor dimensions.
-    // Frames go: GstBuffer map → queue.write_texture() → GPU → present
-    // — no Vec, no memcpy, no SHM.
+    // Created after configure to use exact monitor dimensions.
+    // Zero-copy path: GstBuffer → write_texture → GPU → present
     let renderer = unsafe {
         GpuRenderer::new(
             display_ptr(&conn),
@@ -179,7 +167,6 @@ fn main() {
         .expect("q6w: failed to create GPU renderer — check Vulkan drivers")
     };
 
-    // ── 4. Start GStreamer pipeline ───────────────────────────────────────────
     let pipeline = Pipeline::new(
         &path_str,
         enable_audio,
@@ -189,11 +176,7 @@ fn main() {
         args.fps,
     );
 
-    // ── 4a. Software-fallback guard rail ──────────────────────────────────────
-    //
-    // Without VAAPI, decoding high-resolution video on the CPU can saturate
-    // all cores and consume multiple GB of RAM.  Block by default; the user
-    // can override with --no-fallback-guard.
+    // Without VAAPI, hi-res decoding can saturate CPU and consume GB of RAM.
     if pipeline.is_software_fallback() {
         let pixels = (state.buf_w as u64) * (state.buf_h as u64);
         let is_high_res = pixels > 1920 * 1080; // anything above Full HD
@@ -215,22 +198,15 @@ fn main() {
 
     pipeline.play();
 
-    // ── 5. Main event loop ───────────────────────────────────────────────────
-    //
-    // pipeline.with_frame() maps the GstBuffer read-only and passes the slice
-    // straight to renderer.upload_and_render() — zero intermediate copies.
     let mut was_paused = false;
 
     loop {
-        // ── Pull the latest decoded frame → upload to GPU texture → present ──
         pipeline.with_latest_frame(|data, _w, _h| renderer.upload_and_render(data));
 
-        // ── GStreamer bus: EOS → loop, errors → exit ─────────────────────────
         if pipeline.handle_bus() {
             break;
         }
 
-        // ── Fullscreen detection: pause / resume ─────────────────────────────
         if state.paused_for_fs != was_paused {
             was_paused = state.paused_for_fs;
             if was_paused {
@@ -240,10 +216,8 @@ fn main() {
             }
         }
 
-        // ── Flush our Wayland writes ─────────────────────────────────────────
         conn.flush().ok();
 
-        // ── Dispatch already-buffered Wayland events ─────────────────────────
         queue
             .dispatch_pending(&mut state)
             .expect("Wayland dispatch error");
@@ -252,7 +226,6 @@ fn main() {
             break;
         }
 
-        // ── Wait up to 8 ms for new data on the Wayland socket ───────────────
         if let Some(guard) = queue.prepare_read() {
             let fd = guard.connection_fd().as_raw_fd();
             let mut pfd = libc::pollfd {

@@ -27,8 +27,6 @@ use raw_window_handle::{
     RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle,
 };
 
-// ─── WGSL shader ─────────────────────────────────────────────────────────────
-
 const SHADER_SRC: &str = r#"
 // Six vertices for two triangles covering NDC space.
 var<private> VERTS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
@@ -41,7 +39,6 @@ struct VO { @builtin(position) pos: vec4<f32>, @location(0) uv: vec2<f32> };
 @vertex
 fn vs(@builtin(vertex_index) vi: u32) -> VO {
     let p = VERTS[vi];
-    // Map [-1,1] NDC to [0,1] UV, flip Y so (0,0) is top-left
     return VO(vec4(p, 0.0, 1.0), vec2((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5));
 }
 
@@ -55,8 +52,6 @@ fn fs(v: VO) -> @location(0) vec4<f32> {
     return vec4(c.b, c.g, c.r, c.a);
 }
 "#;
-
-// ─── GpuRenderer ─────────────────────────────────────────────────────────────
 
 pub struct GpuRenderer {
     device: wgpu::Device,
@@ -87,7 +82,6 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        // Create wgpu surface from raw Wayland handles
         let wgpu_surface = unsafe {
             let rdh = RawDisplayHandle::Wayland(WaylandDisplayHandle::new(
                 std::ptr::NonNull::new(display).expect("null wl_display"),

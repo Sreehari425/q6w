@@ -17,8 +17,6 @@ use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 
-// ─── Public pipeline wrapper ─────────────────────────────────────────────────
-
 pub struct Pipeline {
     pipeline: gst::Pipeline,
     appsink: gst_app::AppSink,
@@ -53,13 +51,11 @@ impl Pipeline {
             format!("file://{}/{path}", cwd.display())
         };
 
-        // Try hardware path, fall back to software
         if let Some(p) = Self::try_vaapi(&uri, enable_audio, volume, width, height, fps) {
             eprintln!("q6w: using VAAPI hardware decoder");
             return p;
         }
 
-        // No VAAPI — warn and continue with software decode
         eprintln!("q6w: WARNING: VAAPI hardware decoding is not available.");
         eprintln!(
             "q6w:   Possible causes: missing VA-API driver, NVIDIA without nouveau/nvidia-vaapi-driver,"
@@ -70,8 +66,6 @@ impl Pipeline {
         Self::build_software(&uri, enable_audio, volume, width, height, fps)
     }
 
-    // ── Shared: install deep-element-added hook ──────────────────────────────
-    //
     // Clamp every internal `multiqueue` to 2 buffers and every internal
     // `queue` to 20 MB.  Without this, decodebin3 defaults to buffering
     // 2 seconds of decoded 4K frames ≈ 3.8 GB RSS.
@@ -96,8 +90,6 @@ impl Pipeline {
         });
     }
 
-    // ── Hardware path (VAAPI) ─────────────────────────────────────────────────
-    //
     // Pipeline:
     //   uridecodebin  →  queue(2)  →  vapostproc (GPU scale + colorspace)
     //   →  videorate  →  capsfilter(BGRA WxH)  →  appsink
@@ -191,8 +183,6 @@ impl Pipeline {
         })
     }
 
-    // ── Software path (uridecodebin) ──────────────────────────────────────────
-    //
     // Pipeline:
     //   uridecodebin  →  queue(2)  →  videoscale  →  videorate
     //   →  videoconvert  →  capsfilter(BGRA WxH)  →  appsink
@@ -304,8 +294,6 @@ impl Pipeline {
         }
     }
 
-    // ── Shared: wire uridecodebin pads ───────────────────────────────────────
-
     fn wire_pads(
         src: &gst::Element,
         vqueue: &gst::Element,
@@ -337,8 +325,6 @@ impl Pipeline {
             }
         });
     }
-
-    // ── Shared audio chain builder ────────────────────────────────────────────
 
     fn make_audio_chain(
         volume: f64,
@@ -391,8 +377,6 @@ impl Pipeline {
         }
     }
 
-    // ── Zero-copy frame access ───────────────────────────────────────────────
-
     /// Drain the appsink and process only the **latest** available frame.
     /// For a wallpaper we never need stale frames — only the freshest one.
     pub fn with_latest_frame<F: FnOnce(&[u8], i32, i32)>(&self, f: F) {
@@ -418,8 +402,6 @@ impl Pipeline {
         };
         f(map.as_slice(), w, h);
     }
-
-    // ── Bus monitoring ───────────────────────────────────────────────────────
 
     /// Drain pending bus messages.  Returns `true` on fatal error.
     pub fn handle_bus(&self) -> bool {

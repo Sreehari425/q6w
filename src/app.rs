@@ -25,30 +25,23 @@ use wayland_protocols_wlr::{
     },
 };
 
-// ─── public state struct ─────────────────────────────────────────────────────
-
 pub struct State {
-    // ---- Wayland globals we bind ----
     pub compositor: Option<wl_compositor::WlCompositor>,
     pub layer_shell: Option<ZwlrLayerShellV1>,
     pub toplevel_mgr: Option<ZwlrForeignToplevelManagerV1>,
 
-    // ---- our surface / layer surface ----
     pub surface: Option<wl_surface::WlSurface>,
     pub layer_surface: Option<ZwlrLayerSurfaceV1>,
 
-    // ---- output dimensions (set on configure) ----
     pub buf_w: i32,
     pub buf_h: i32,
     pub configured: bool,
 
-    // ---- fullscreen-app tracking ----
     // Maps foreign-toplevel ObjectId → was_fullscreen_active
     toplevel_states: HashMap<ObjectId, bool>,
     pub fullscreen_count: i32,
     pub paused_for_fs: bool,
 
-    // ---- exit flag ----
     pub running: bool,
 }
 
@@ -69,8 +62,6 @@ impl State {
             running: true,
         }
     }
-
-    // ---- layer-surface setup ------------------------------------------------
 
     pub fn create_layer_surface(&mut self, qh: &QueueHandle<State>) -> bool {
         let compositor = match &self.compositor {
@@ -100,14 +91,12 @@ impl State {
             (),
         );
 
-        // Stretch edge-to-edge, no exclusive zone, no keyboard
         layer_surface.set_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right);
         layer_surface.set_size(0, 0);
         layer_surface.set_exclusive_zone(-1);
         layer_surface
             .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
 
-        // Initial commit (no buffer) → compositor replies with configure
         surface.commit();
 
         self.surface = Some(surface);
@@ -115,13 +104,10 @@ impl State {
         true
     }
 
-    // ---- fullscreen helpers ------------------------------------------------
-
     fn on_fullscreen_enter(&mut self) {
         self.fullscreen_count += 1;
         if self.fullscreen_count == 1 && !self.paused_for_fs {
             self.paused_for_fs = true;
-            // main loop watches paused_for_fs and calls pipeline.pause()
         }
     }
 
@@ -131,12 +117,9 @@ impl State {
         }
         if self.fullscreen_count == 0 && self.paused_for_fs {
             self.paused_for_fs = false;
-            // main loop watches paused_for_fs and calls pipeline.resume()
         }
     }
 }
-
-// ─── Dispatch: wl_registry (required for registry_queue_init) ────────────────
 
 impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for State {
     fn event(
@@ -199,8 +182,6 @@ impl Dispatch<ZwlrForeignToplevelManagerV1, ()> for State {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // zwlr_foreign_toplevel_handle_v1 objects arrive via this event and
-        // are auto-dispatched to the impl below.
         match event {
             zwlr_foreign_toplevel_manager_v1::Event::Toplevel { .. } => {}
             zwlr_foreign_toplevel_manager_v1::Event::Finished => {}
@@ -212,8 +193,6 @@ impl Dispatch<ZwlrForeignToplevelManagerV1, ()> for State {
         0 => (ZwlrForeignToplevelHandleV1, ())
     ]);
 }
-
-// ─── Dispatch: layer-surface ─────────────────────────────────────────────────
 
 impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
     fn event(
@@ -240,7 +219,6 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                     state.buf_h = h;
                 }
 
-                // Commit the surface so the compositor maps it
                 if let Some(surf) = &state.surface {
                     surf.commit();
                 }
@@ -255,8 +233,6 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
         }
     }
 }
-
-// ─── Dispatch: foreign-toplevel handles (fullscreen detection) ───────────────
 
 impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for State {
     fn event(
