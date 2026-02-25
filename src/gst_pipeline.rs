@@ -142,53 +142,33 @@ impl Pipeline {
             .sync(true)
             .build();
 
-        if enable_audio {
-            let (aqueue, aconvert, aresample, vol, audiosink) = Self::make_audio_chain(volume)?;
+        // Always attach a real audio sink so GStreamer has a clock provider.
+        // Without -a (audio), volume is set to 0 — silent but clocked.
+        let effective_volume = if enable_audio { volume } else { 0.0 };
+        let (aqueue, aconvert, aresample, vol, audiosink) =
+            Self::make_audio_chain(effective_volume)?;
 
-            pipeline
-                .add_many([
-                    &src,
-                    &vqueue,
-                    &postproc,
-                    &rate,
-                    &cfilter,
-                    appsink.upcast_ref::<gst::Element>(),
-                    &aqueue,
-                    &aconvert,
-                    &aresample,
-                    &vol,
-                    &audiosink,
-                ])
-                .ok()?;
+        pipeline
+            .add_many([
+                &src,
+                &vqueue,
+                &postproc,
+                &rate,
+                &cfilter,
+                appsink.upcast_ref::<gst::Element>(),
+                &aqueue,
+                &aconvert,
+                &aresample,
+                &vol,
+                &audiosink,
+            ])
+            .ok()?;
 
-            gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
-                .ok()?;
-            gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink]).ok()?;
+        gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
+            .ok()?;
+        gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink]).ok()?;
 
-            Self::wire_pads(&src, &vqueue, Some(&aqueue));
-        } else {
-            let fakesink = gst::ElementFactory::make("fakesink")
-                .property("sync", false)
-                .build()
-                .ok()?;
-
-            pipeline
-                .add_many([
-                    &src,
-                    &vqueue,
-                    &postproc,
-                    &rate,
-                    &cfilter,
-                    appsink.upcast_ref::<gst::Element>(),
-                    &fakesink,
-                ])
-                .ok()?;
-
-            gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
-                .ok()?;
-
-            Self::wire_pads(&src, &vqueue, Some(&fakesink));
-        }
+        Self::wire_pads(&src, &vqueue, Some(&aqueue));
 
         let bus = pipeline.bus().expect("no bus");
         Some(Pipeline {
@@ -266,71 +246,42 @@ impl Pipeline {
             .sync(true)
             .build();
 
-        if enable_audio {
-            let (aqueue, aconvert, aresample, vol, audiosink) =
-                Self::make_audio_chain(volume).expect("audio chain elements not found");
+        // Always attach a real audio sink so GStreamer has a clock provider.
+        // Without -a (audio), volume is set to 0 — silent but clocked.
+        let effective_volume = if enable_audio { volume } else { 0.0 };
+        let (aqueue, aconvert, aresample, vol, audiosink) =
+            Self::make_audio_chain(effective_volume).expect("audio chain elements not found");
 
-            pipeline
-                .add_many([
-                    &src,
-                    &vqueue,
-                    &scale,
-                    &rate,
-                    &convert,
-                    &cfilter,
-                    appsink.upcast_ref::<gst::Element>(),
-                    &aqueue,
-                    &aconvert,
-                    &aresample,
-                    &vol,
-                    &audiosink,
-                ])
-                .expect("failed to add elements");
-
-            gst::Element::link_many([
+        pipeline
+            .add_many([
+                &src,
                 &vqueue,
                 &scale,
                 &rate,
                 &convert,
                 &cfilter,
-                appsink.upcast_ref(),
+                appsink.upcast_ref::<gst::Element>(),
+                &aqueue,
+                &aconvert,
+                &aresample,
+                &vol,
+                &audiosink,
             ])
-            .expect("failed to link video chain");
-            gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink])
-                .expect("failed to link audio chain");
+            .expect("failed to add elements");
 
-            Self::wire_pads(&src, &vqueue, Some(&aqueue));
-        } else {
-            let fakesink = gst::ElementFactory::make("fakesink")
-                .property("sync", false)
-                .build()
-                .expect("fakesink not found");
+        gst::Element::link_many([
+            &vqueue,
+            &scale,
+            &rate,
+            &convert,
+            &cfilter,
+            appsink.upcast_ref(),
+        ])
+        .expect("failed to link video chain");
+        gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink])
+            .expect("failed to link audio chain");
 
-            pipeline
-                .add_many([
-                    &src,
-                    &vqueue,
-                    &scale,
-                    &rate,
-                    &convert,
-                    &cfilter,
-                    appsink.upcast_ref::<gst::Element>(),
-                    &fakesink,
-                ])
-                .expect("failed to add elements");
-
-            gst::Element::link_many([
-                &vqueue,
-                &scale,
-                &rate,
-                &convert,
-                &cfilter,
-                appsink.upcast_ref(),
-            ])
-            .expect("failed to link video chain");
-
-            Self::wire_pads(&src, &vqueue, Some(&fakesink));
-        }
+        Self::wire_pads(&src, &vqueue, Some(&aqueue));
 
         let bus = pipeline.bus().expect("no bus");
         Pipeline {
@@ -414,11 +365,15 @@ impl Pipeline {
     }
 
     pub fn pause(&self) {
-        self.pipeline.set_state(gst::State::Paused).ok();
+        if let Err(e) = self.pipeline.set_state(gst::State::Paused) {
+            eprintln!("q6w: failed to pause pipeline: {e:?}");
+        }
     }
 
     pub fn resume(&self) {
-        self.pipeline.set_state(gst::State::Playing).ok();
+        if let Err(e) = self.pipeline.set_state(gst::State::Playing) {
+            eprintln!("q6w: failed to resume pipeline: {e:?}");
+        }
     }
 
     // ── Zero-copy frame access ───────────────────────────────────────────────
