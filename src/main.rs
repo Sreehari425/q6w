@@ -165,7 +165,14 @@ fn main() {
     };
 
     // ── 4. Start GStreamer pipeline ───────────────────────────────────────────
-    let pipeline = Pipeline::new(&path_str, enable_audio, volume, state.buf_w, state.buf_h, args.fps);
+    let pipeline = Pipeline::new(
+        &path_str,
+        enable_audio,
+        volume,
+        state.buf_w,
+        state.buf_h,
+        args.fps,
+    );
 
     // ── 4a. Software-fallback guard rail ──────────────────────────────────────
     //
@@ -182,19 +189,11 @@ fn main() {
                 "q6w: Software decoding at {}×{} is not recommended.",
                 state.buf_w, state.buf_h
             );
-            eprintln!(
-                "q6w: Without VAAPI, high-resolution decode will cause excessive CPU"
-            );
-            eprintln!(
-                "q6w: and memory usage. Consider downscaling the video or installing"
-            );
-            eprintln!(
-                "q6w: the appropriate VA-API driver for your GPU."
-            );
+            eprintln!("q6w: Without VAAPI, high-resolution decode will cause excessive CPU");
+            eprintln!("q6w: and memory usage. Consider downscaling the video or installing");
+            eprintln!("q6w: the appropriate VA-API driver for your GPU.");
             eprintln!();
-            eprintln!(
-                "q6w: To proceed anyway, re-run with --no-fallback-guard."
-            );
+            eprintln!("q6w: To proceed anyway, re-run with --no-fallback-guard.");
             std::process::exit(1);
         }
     }

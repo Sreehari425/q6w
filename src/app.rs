@@ -292,11 +292,10 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for State {
                 }
             }
             zwlr_foreign_toplevel_handle_v1::Event::Closed => {
-                if let Some(was_fs) = state.toplevel_states.remove(&id) {
-                    if was_fs {
+                if let Some(was_fs) = state.toplevel_states.remove(&id)
+                    && was_fs {
                         state.on_fullscreen_leave();
                     }
-                }
             }
             _ => {}
         }

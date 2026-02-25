@@ -29,7 +29,14 @@ impl Pipeline {
     ///
     /// When `enable_audio` is `true`, an audio playback chain is added;
     /// otherwise audio pads from uridecodebin are sent to `fakesink`.
-    pub fn new(path: &str, enable_audio: bool, volume: f64, width: i32, height: i32, fps: Option<i32>) -> Self {
+    pub fn new(
+        path: &str,
+        enable_audio: bool,
+        volume: f64,
+        width: i32,
+        height: i32,
+        fps: Option<i32>,
+    ) -> Self {
         gst::init().expect(
             "q6w: GStreamer init failed — is GStreamer installed?\n\
              Arch: sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
@@ -51,7 +58,9 @@ impl Pipeline {
 
         // No VAAPI — warn and continue with software decode
         eprintln!("q6w: WARNING: VAAPI hardware decoding is not available.");
-        eprintln!("q6w:   Possible causes: missing VA-API driver, NVIDIA without nouveau/nvidia-vaapi-driver,");
+        eprintln!(
+            "q6w:   Possible causes: missing VA-API driver, NVIDIA without nouveau/nvidia-vaapi-driver,"
+        );
         eprintln!("q6w:   or unsupported GPU. Run `vainfo` to diagnose.");
         eprintln!("q6w:   Falling back to software decoding (higher CPU and RAM usage).");
 
@@ -294,7 +303,11 @@ impl Pipeline {
 
     // ── Shared: wire uridecodebin pads ───────────────────────────────────────
 
-    fn wire_pads(src: &gst::Element, vqueue: &gst::Element, audio_sink_elem: Option<&gst::Element>) {
+    fn wire_pads(
+        src: &gst::Element,
+        vqueue: &gst::Element,
+        audio_sink_elem: Option<&gst::Element>,
+    ) {
         let vqueue_w = vqueue.downgrade();
         let audio_w = audio_sink_elem.map(|e| e.downgrade());
         src.connect_pad_added(move |_, pad| {
@@ -310,16 +323,14 @@ impl Pipeline {
                         pad.link(&sink).ok();
                     }
                 }
-            } else if name.starts_with("audio/") {
-                if let Some(ref w) = audio_w {
-                    if let Some(q) = w.upgrade() {
+            } else if name.starts_with("audio/")
+                && let Some(ref w) = audio_w
+                    && let Some(q) = w.upgrade() {
                         let sink = q.static_pad("sink").unwrap();
                         if !sink.is_linked() {
                             pad.link(&sink).ok();
                         }
                     }
-                }
-            }
         });
     }
 
