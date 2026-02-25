@@ -1,0 +1,17 @@
+name: Mirror to Codeberg
+
+on:
+  push:
+    branches: [ main ] # Change this to your default branch
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  codeberg_mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror Repository to Codeberg
+        uses: cssnr/mirror-repository-action@v1
+        with:
+          remote_url: "https://codeberg.org{{ github.repository_owner }}/${{ github.event.repository.name }}.git"
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CODEBERG_TOKEN }}
