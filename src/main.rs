@@ -38,10 +38,6 @@ struct Args {
     #[arg(short, long, value_name = "FILE", required_unless_present = "license")]
     file: Option<PathBuf>,
 
-    /// Zero-based screen/output index (reserved — compositor picks output)
-    #[arg(short, long, value_name = "N", default_value_t = 0)]
-    screen: i32,
-
     /// Enable audio playback (disabled by default)
     #[arg(short, long)]
     audio: bool,
