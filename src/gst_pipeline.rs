@@ -24,7 +24,10 @@ pub struct Pipeline {
 
 impl Pipeline {
     /// Build the decode pipeline for `path` at `width × height`.
-    pub fn new(path: &str, volume: f64, width: i32, height: i32, fps: Option<i32>) -> Self {
+    ///
+    /// When `enable_audio` is `true`, an audio playback chain is added;
+    /// otherwise audio pads from uridecodebin are sent to `fakesink`.
+    pub fn new(path: &str, enable_audio: bool, volume: f64, width: i32, height: i32, fps: Option<i32>) -> Self {
         gst::init().expect(
             "q6w: GStreamer init failed — is GStreamer installed?\n\
              Arch: sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
@@ -39,13 +42,13 @@ impl Pipeline {
         };
 
         // Try hardware path, fall back to software
-        if let Some(p) = Self::try_vaapi(&uri, volume, width, height, fps) {
+        if let Some(p) = Self::try_vaapi(&uri, enable_audio, volume, width, height, fps) {
             eprintln!("q6w: using VAAPI hardware decoder");
             return p;
         }
         eprintln!("q6w: WARNING: VAAPI not available — falling back to software decoder");
         eprintln!("q6w:   This will use significantly more RAM and CPU, especially at 4K.");
-        Self::build_software(&uri, volume, width, height, fps)
+        Self::build_software(&uri, enable_audio, volume, width, height, fps)
     }
 
     // ── Shared: install deep-element-added hook ──────────────────────────────
@@ -82,6 +85,7 @@ impl Pipeline {
 
     fn try_vaapi(
         uri: &str,
+        enable_audio: bool,
         volume: f64,
         width: i32,
         height: i32,
@@ -131,29 +135,53 @@ impl Pipeline {
             .sync(true)
             .build();
 
-        let (aqueue, aconvert, aresample, vol, audiosink) = Self::make_audio_chain(volume)?;
+        if enable_audio {
+            let (aqueue, aconvert, aresample, vol, audiosink) = Self::make_audio_chain(volume)?;
 
-        pipeline
-            .add_many([
-                &src,
-                &vqueue,
-                &postproc,
-                &rate,
-                &cfilter,
-                appsink.upcast_ref::<gst::Element>(),
-                &aqueue,
-                &aconvert,
-                &aresample,
-                &vol,
-                &audiosink,
-            ])
-            .ok()?;
+            pipeline
+                .add_many([
+                    &src,
+                    &vqueue,
+                    &postproc,
+                    &rate,
+                    &cfilter,
+                    appsink.upcast_ref::<gst::Element>(),
+                    &aqueue,
+                    &aconvert,
+                    &aresample,
+                    &vol,
+                    &audiosink,
+                ])
+                .ok()?;
 
-        gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
-            .ok()?;
-        gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink]).ok()?;
+            gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
+                .ok()?;
+            gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink]).ok()?;
 
-        Self::wire_pads(&src, &vqueue, &aqueue);
+            Self::wire_pads(&src, &vqueue, Some(&aqueue));
+        } else {
+            let fakesink = gst::ElementFactory::make("fakesink")
+                .property("sync", false)
+                .build()
+                .ok()?;
+
+            pipeline
+                .add_many([
+                    &src,
+                    &vqueue,
+                    &postproc,
+                    &rate,
+                    &cfilter,
+                    appsink.upcast_ref::<gst::Element>(),
+                    &fakesink,
+                ])
+                .ok()?;
+
+            gst::Element::link_many([&vqueue, &postproc, &rate, &cfilter, appsink.upcast_ref()])
+                .ok()?;
+
+            Self::wire_pads(&src, &vqueue, Some(&fakesink));
+        }
 
         let bus = pipeline.bus().expect("no bus");
         Some(Pipeline {
@@ -174,6 +202,7 @@ impl Pipeline {
 
     fn build_software(
         uri: &str,
+        enable_audio: bool,
         volume: f64,
         width: i32,
         height: i32,
@@ -229,39 +258,71 @@ impl Pipeline {
             .sync(true)
             .build();
 
-        let (aqueue, aconvert, aresample, vol, audiosink) =
-            Self::make_audio_chain(volume).expect("audio chain elements not found");
+        if enable_audio {
+            let (aqueue, aconvert, aresample, vol, audiosink) =
+                Self::make_audio_chain(volume).expect("audio chain elements not found");
 
-        pipeline
-            .add_many([
-                &src,
+            pipeline
+                .add_many([
+                    &src,
+                    &vqueue,
+                    &scale,
+                    &rate,
+                    &convert,
+                    &cfilter,
+                    appsink.upcast_ref::<gst::Element>(),
+                    &aqueue,
+                    &aconvert,
+                    &aresample,
+                    &vol,
+                    &audiosink,
+                ])
+                .expect("failed to add elements");
+
+            gst::Element::link_many([
                 &vqueue,
                 &scale,
                 &rate,
                 &convert,
                 &cfilter,
-                appsink.upcast_ref::<gst::Element>(),
-                &aqueue,
-                &aconvert,
-                &aresample,
-                &vol,
-                &audiosink,
+                appsink.upcast_ref(),
             ])
-            .expect("failed to add elements");
+            .expect("failed to link video chain");
+            gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink])
+                .expect("failed to link audio chain");
 
-        gst::Element::link_many([
-            &vqueue,
-            &scale,
-            &rate,
-            &convert,
-            &cfilter,
-            appsink.upcast_ref(),
-        ])
-        .expect("failed to link video chain");
-        gst::Element::link_many([&aqueue, &aconvert, &aresample, &vol, &audiosink])
-            .expect("failed to link audio chain");
+            Self::wire_pads(&src, &vqueue, Some(&aqueue));
+        } else {
+            let fakesink = gst::ElementFactory::make("fakesink")
+                .property("sync", false)
+                .build()
+                .expect("fakesink not found");
 
-        Self::wire_pads(&src, &vqueue, &aqueue);
+            pipeline
+                .add_many([
+                    &src,
+                    &vqueue,
+                    &scale,
+                    &rate,
+                    &convert,
+                    &cfilter,
+                    appsink.upcast_ref::<gst::Element>(),
+                    &fakesink,
+                ])
+                .expect("failed to add elements");
+
+            gst::Element::link_many([
+                &vqueue,
+                &scale,
+                &rate,
+                &convert,
+                &cfilter,
+                appsink.upcast_ref(),
+            ])
+            .expect("failed to link video chain");
+
+            Self::wire_pads(&src, &vqueue, Some(&fakesink));
+        }
 
         let bus = pipeline.bus().expect("no bus");
         Pipeline {
@@ -273,9 +334,9 @@ impl Pipeline {
 
     // ── Shared: wire uridecodebin pads ───────────────────────────────────────
 
-    fn wire_pads(src: &gst::Element, vqueue: &gst::Element, aqueue: &gst::Element) {
+    fn wire_pads(src: &gst::Element, vqueue: &gst::Element, audio_sink_elem: Option<&gst::Element>) {
         let vqueue_w = vqueue.downgrade();
-        let aqueue_w = aqueue.downgrade();
+        let audio_w = audio_sink_elem.map(|e| e.downgrade());
         src.connect_pad_added(move |_, pad| {
             let Some(caps) = pad.current_caps() else {
                 return;
@@ -290,10 +351,12 @@ impl Pipeline {
                     }
                 }
             } else if name.starts_with("audio/") {
-                if let Some(q) = aqueue_w.upgrade() {
-                    let sink = q.static_pad("sink").unwrap();
-                    if !sink.is_linked() {
-                        pad.link(&sink).ok();
+                if let Some(ref w) = audio_w {
+                    if let Some(q) = w.upgrade() {
+                        let sink = q.static_pad("sink").unwrap();
+                        if !sink.is_linked() {
+                            pad.link(&sink).ok();
+                        }
                     }
                 }
             }

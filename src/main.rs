@@ -39,8 +39,12 @@ struct Args {
     #[arg(short, long, value_name = "N", default_value_t = 0)]
     screen: i32,
 
-    /// Audio volume: 0.0 = mute, 1.0 = full [default: 0.0]
-    #[arg(short, long, value_name = "VOLUME", default_value_t = 0.0)]
+    /// Enable audio playback (disabled by default)
+    #[arg(short, long)]
+    audio: bool,
+
+    /// Audio volume: 0.0 = mute, 1.0 = full
+    #[arg(long, value_name = "VOLUME", default_value_t = 1.0)]
     volume: f32,
 
     /// Target framerate limit (e.g. 30). Drops frames to hit the limit.
@@ -85,6 +89,7 @@ fn main() {
         .canonicalize()
         .unwrap_or_else(|_| args.file.clone());
     let path_str = abs_path.to_string_lossy().into_owned();
+    let enable_audio = args.audio;
     let volume = args.volume.clamp(0.0, 1.0) as f64;
 
     // ── 1. Connect to the Wayland compositor ─────────────────────────────────
@@ -152,7 +157,7 @@ fn main() {
     };
 
     // ── 4. Start GStreamer pipeline ───────────────────────────────────────────
-    let pipeline = Pipeline::new(&path_str, volume, state.buf_w, state.buf_h, args.fps);
+    let pipeline = Pipeline::new(&path_str, enable_audio, volume, state.buf_w, state.buf_h, args.fps);
     pipeline.play();
 
     // ── 5. Main event loop ───────────────────────────────────────────────────
