@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2025 Sreehari Anil <sreehari7102008@gmail.com>
+
 mod app;
 mod gpu_renderer;
 mod gst_pipeline;
@@ -32,8 +35,8 @@ use gst_pipeline::Pipeline;
 #[command(name = "q6w", author, version, about, long_about = None)]
 struct Args {
     /// Path to the video file
-    #[arg(short, long, value_name = "FILE")]
-    file: PathBuf,
+    #[arg(short, long, value_name = "FILE", required_unless_present = "license")]
+    file: Option<PathBuf>,
 
     /// Zero-based screen/output index (reserved — compositor picks output)
     #[arg(short, long, value_name = "N", default_value_t = 0)]
@@ -58,6 +61,10 @@ struct Args {
     /// extreme.  Pass this flag to allow it anyway.
     #[arg(long)]
     no_fallback_guard: bool,
+
+    /// Print license information and source code links, then exit.
+    #[arg(long)]
+    license: bool,
 }
 
 // ─── Wayland raw-pointer extraction ─────────────────────────────────────────
@@ -87,15 +94,27 @@ fn surface_ptr(state: &State) -> *mut c_void {
 fn main() {
     let args = Args::parse();
 
-    if !args.file.exists() {
-        eprintln!("q6w: file not found: {}", args.file.display());
+    if args.license {
+        println!(
+            "q6w is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only)."
+        );
+        println!();
+        println!("Source code:");
+        println!("  GitHub   : https://github.com/Sreehari425/q6w");
+        println!("  Codeberg : https://codeberg.org/sreehari425/q6w");
+        std::process::exit(0);
+    }
+
+    let file = args
+        .file
+        .expect("--file is required when --license is not used");
+
+    if !file.exists() {
+        eprintln!("q6w: file not found: {}", file.display());
         std::process::exit(1);
     }
 
-    let abs_path = args
-        .file
-        .canonicalize()
-        .unwrap_or_else(|_| args.file.clone());
+    let abs_path = file.canonicalize().unwrap_or_else(|_| file.clone());
     let path_str = abs_path.to_string_lossy().into_owned();
     let enable_audio = args.audio;
     let volume = args.volume.clamp(0.0, 1.0) as f64;

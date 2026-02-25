@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2025 Sreehari Anil <sreehari7102008@gmail.com>
+
 //! GStreamer video pipeline.
 //!
 //! Two decoding strategies are tried in order:
@@ -325,12 +328,13 @@ impl Pipeline {
                 }
             } else if name.starts_with("audio/")
                 && let Some(ref w) = audio_w
-                    && let Some(q) = w.upgrade() {
-                        let sink = q.static_pad("sink").unwrap();
-                        if !sink.is_linked() {
-                            pad.link(&sink).ok();
-                        }
-                    }
+                && let Some(q) = w.upgrade()
+            {
+                let sink = q.static_pad("sink").unwrap();
+                if !sink.is_linked() {
+                    pad.link(&sink).ok();
+                }
+            }
         });
     }
 

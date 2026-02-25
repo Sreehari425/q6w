@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2025 Sreehari Anil <sreehari7102008@gmail.com>
+
 //! Wayland application state and all protocol `Dispatch` implementations.
 //!
 //! Nothing here touches C++ or Qt — pure Rust Wayland via `wayland-client`
@@ -293,9 +296,10 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for State {
             }
             zwlr_foreign_toplevel_handle_v1::Event::Closed => {
                 if let Some(was_fs) = state.toplevel_states.remove(&id)
-                    && was_fs {
-                        state.on_fullscreen_leave();
-                    }
+                    && was_fs
+                {
+                    state.on_fullscreen_leave();
+                }
             }
             _ => {}
         }
