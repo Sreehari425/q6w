@@ -18,7 +18,7 @@ jobs:
         uses: cssnr/mirror-repository-action@v1
         with:
           # Use 'url' instead of 'remote_url'
-          url: "https://codeberg.org{{ github.repository_owner }}/${{ github.event.repository.name }}.git"
-          username: ${{ github.repository_owner }}
+          url: "https://codeberg.org/sreehari425/q6w.git"
+          username: sreehari425
           password: ${{ secrets.CODEBERG_TOKEN }}
           create: true # Automatically creates the repo on Codeberg if missing
