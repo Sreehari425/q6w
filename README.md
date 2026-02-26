@@ -55,17 +55,19 @@ q6w --file <VIDEO>
 
 ### Options
 
-| Flag                  | Description                                                        |
-| --------------------- | ------------------------------------------------------------------ |
-| `-f, --file <FILE>`   | Path to the video file                                             |
-| `-a, --audio`         | Enable audio playback (off by default)                             |
-| `--volume <VOLUME>`   | Audio volume, `0.0` – `1.0` (default: `1.0`)                       |
-| `--mute-on-window`    | Mute audio when any window is focused or maximized (requires `-a`) |
-| `--fps <FPS>`         | Framerate limit (e.g. `30`)                                        |
-| `--no-fallback-guard` | Allow software decoding above 1080p                                |
-| `--license`           | Print license info and source code links                           |
-| `-V, --version`       | Print version                                                      |
-| `-h, --help`          | Print help                                                         |
+| Flag                       | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `-f, --file <FILE>`        | Path to the video file                                             |
+| `-a, --audio`              | Enable audio playback (off by default)                             |
+| `--volume <VOLUME>`        | Audio volume, `0.0` – `1.0` (default: `1.0`)                       |
+| `--mute-on-window`         | Mute audio when any window is focused or maximized (requires `-a`) |
+| `--pause-on-window`        | Pause video when any window is focused or maximized                |
+| `--no-pause-on-fullscreen` | Disable automatic pause when a window goes fullscreen              |
+| `--fps <FPS>`              | Framerate limit (e.g. `30`)                                        |
+| `--no-fallback-guard`      | Allow software decoding above 1080p                                |
+| `--license`                | Print license info and source code links                           |
+| `-V, --version`            | Print version                                                      |
+| `-h, --help`               | Print help                                                         |
 
 ### Examples
 
@@ -78,6 +80,12 @@ q6w --file ~/Videos/wallpaper.mp4 --audio --volume 0.5
 
 # mute audio when windows are focused (unmute when wallpaper is visible)
 q6w --file ~/Videos/wallpaper.mp4 --audio --mute-on-window
+
+# pause video when windows are focused (resume when wallpaper is visible)
+q6w --file ~/Videos/wallpaper.mp4 --pause-on-window
+
+# disable fullscreen auto-pause (useful for multi-monitor setups)
+q6w --file ~/Videos/wallpaper.mp4 --no-pause-on-fullscreen
 
 # cap at 30 fps to save power
 q6w --file ~/Videos/wallpaper.mp4 --fps 30

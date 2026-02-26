@@ -42,9 +42,10 @@ pub struct State {
     pub fullscreen_count: i32,
     pub paused_for_fs: bool,
 
-    // Window activity tracking for audio muting
+    // Window activity tracking for audio muting and video pausing
     pub active_or_maximized_count: i32,
     pub muted_for_windows: bool,
+    pub paused_for_windows: bool,
 
     pub running: bool,
 }
@@ -65,6 +66,7 @@ impl State {
             paused_for_fs: false,
             active_or_maximized_count: 0,
             muted_for_windows: false,
+            paused_for_windows: false,
             running: true,
         }
     }
@@ -128,8 +130,13 @@ impl State {
 
     fn on_window_active_enter(&mut self) {
         self.active_or_maximized_count += 1;
-        if self.active_or_maximized_count == 1 && !self.muted_for_windows {
-            self.muted_for_windows = true;
+        if self.active_or_maximized_count == 1 {
+            if !self.muted_for_windows {
+                self.muted_for_windows = true;
+            }
+            if !self.paused_for_windows {
+                self.paused_for_windows = true;
+            }
         }
     }
 
@@ -137,8 +144,13 @@ impl State {
         if self.active_or_maximized_count > 0 {
             self.active_or_maximized_count -= 1;
         }
-        if self.active_or_maximized_count == 0 && self.muted_for_windows {
-            self.muted_for_windows = false;
+        if self.active_or_maximized_count == 0 {
+            if self.muted_for_windows {
+                self.muted_for_windows = false;
+            }
+            if self.paused_for_windows {
+                self.paused_for_windows = false;
+            }
         }
     }
 }

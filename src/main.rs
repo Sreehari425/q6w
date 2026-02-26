@@ -48,6 +48,14 @@ struct Args {
     #[arg(long)]
     mute_on_window: bool,
 
+    /// Pause video when any window is focused or maximized
+    #[arg(long)]
+    pause_on_window: bool,
+
+    /// Disable automatic pause when a window goes fullscreen
+    #[arg(long)]
+    no_pause_on_fullscreen: bool,
+
     /// Target framerate limit (e.g. 30). Drops frames to hit the limit.
     #[arg(long, value_name = "FPS")]
     fps: Option<i32>,
@@ -202,7 +210,8 @@ fn main() {
 
     pipeline.play();
 
-    let mut was_paused = false;
+    let mut was_paused_fs = false;
+    let mut was_paused_window = false;
     let mut was_muted = false;
 
     loop {
@@ -212,12 +221,25 @@ fn main() {
             break;
         }
 
-        if state.paused_for_fs != was_paused {
-            was_paused = state.paused_for_fs;
-            if was_paused {
-                pipeline.pause();
-            } else {
-                pipeline.resume();
+        if !args.no_pause_on_fullscreen {
+            if state.paused_for_fs != was_paused_fs {
+                was_paused_fs = state.paused_for_fs;
+                if was_paused_fs {
+                    pipeline.pause();
+                } else if !state.paused_for_windows {
+                    pipeline.resume();
+                }
+            }
+        }
+
+        if args.pause_on_window {
+            if state.paused_for_windows != was_paused_window {
+                was_paused_window = state.paused_for_windows;
+                if was_paused_window {
+                    pipeline.pause();
+                } else if !state.paused_for_fs || args.no_pause_on_fullscreen {
+                    pipeline.resume();
+                }
             }
         }
 
