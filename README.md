@@ -6,7 +6,7 @@ I built this for myself because I wanted animated wallpapers on Hyprland and not
 out there did it quite the way I wanted. It works on any compositor that supports
 `zwlr_layer_shell_v1` (Sway, Hyprland, river, labwc, …).
 
-> **Fair warning** — this is a personal project, not a polished product.
+> **Fair warning**: this is a personal project, not a polished product.
 > It does what I need it to do, but it's far from feature-complete. See the
 > [limitations](#limitations) section below for what's missing.
 
@@ -31,21 +31,12 @@ out there did it quite the way I wanted. It works on any compositor that support
 sudo pacman -S gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad
 ```
 
-### Debian / Ubuntu
-
-```sh
-sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base \
-  gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
-```
-
 For VAAPI hardware decoding, also install:
 
 ```sh
 # Arch
 sudo pacman -S gst-plugin-va
 
-# Debian / Ubuntu
-sudo apt install gstreamer1.0-vaapi
 ```
 
 ## Building
@@ -103,15 +94,15 @@ src/
 This is a hobby project — it scratches my itch, but it doesn't try to be
 everything. Here's what it _doesn't_ do (yet, or maybe ever):
 
-- **No multi-monitor support** — it renders on whatever output the compositor gives it;
+- **No multi-monitor support**: it renders on whatever output the compositor gives it;
   you can't pick a specific screen or set different videos per monitor.
-- **No playlist / shuffle** — one video, looped. That's it.
-- **No runtime control** — no IPC, no socket, no D-Bus. To change the video, kill it
+- **No playlist / shuffle**: one video, looped. That's it.
+- **No runtime control**: no IPC, no socket, no D-Bus. To change the video, kill it
   and start a new one.
-- **No image wallpapers** — video only. Use `swaybg` or similar for static images.
-- **No X11** — Wayland only, and specifically compositors with `zwlr_layer_shell_v1`.
+- **No image wallpapers**: video only. Use `swaybg` or similar for static images.
+- **No X11**: Wayland only, and specifically compositors with `zwlr_layer_shell_v1`.
 - **No graceful handling of GPU loss** — if your GPU resets, q6w will crash.
-- **Software decoding above 1080p is blocked by default** — CPU and memory usage can
+- **Software decoding above 1080p is blocked by default**: CPU and memory usage can
   get extreme. You can override this with `--no-fallback-guard`, but don't say I
   didn't warn you.
 
