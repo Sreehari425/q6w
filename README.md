@@ -47,6 +47,32 @@ cargo build --release
 
 The binary is at `target/release/q6w`.
 
+### Versioning
+
+The project uses commit-based versioning. Each build includes the git commit hash in the version string (e.g., `0.1.0+84dddc3`). You can check your version with:
+
+```sh
+q6w --version
+```
+
+## Packaging
+
+### Arch Linux
+
+A `PKGBUILD` is included for building Arch packages. The package version automatically uses the commit count.
+
+To build and install locally:
+
+```sh
+makepkg -si
+```
+
+For AUR submission, generate `.SRCINFO`:
+
+```sh
+makepkg --printsrcinfo > .SRCINFO
+```
+
 ## Usage
 
 ```

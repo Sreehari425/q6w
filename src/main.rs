@@ -30,7 +30,7 @@ use gst_pipeline::Pipeline;
 /// — no Vec allocation, no CPU copy.  VAAPI hardware decoding is used
 /// automatically when available; software fallback otherwise.
 #[derive(Parser, Debug)]
-#[command(name = "q6w", author, version, about, long_about = None)]
+#[command(name = "q6w", author, version = env!("FULL_VERSION"), about, long_about = None)]
 struct Args {
     /// Path to the video file
     #[arg(short, long, value_name = "FILE", required_unless_present = "license")]
