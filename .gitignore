@@ -1,2 +1,8 @@
 /target
 .history
+
+# Arch packaging artifacts
+pkg/
+q6w/
+*.pkg.tar.zst
+*.src.tar.gz
