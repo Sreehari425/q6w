@@ -4,7 +4,7 @@ A scrappy little hobby project that does one thing: play a video as your Wayland
 
 I built this for myself because I wanted animated wallpapers on Hyprland and nothing
 out there did it quite the way I wanted. It works on any compositor that supports
-`zwlr_layer_shell_v1` (Sway, Hyprland, river, labwc, …).
+`zwlr_layer_shell_v1` (Sway, Hyprland, river, labwc,niri, …).
 
 > **Fair warning**: this is a personal project, not a polished product.
 > It does what I need it to do, but it's far from feature-complete. See the
@@ -103,8 +103,8 @@ src/
 
 ## Limitations
 
-This is a hobby project — it scratches my itch, but it doesn't try to be
-everything. Here's what it _doesn't_ do (yet, or maybe ever):
+This is a hobby project it scratches my itch, but it doesn't try to be
+everything. Here's what it _doesn't_ do (yet, or maybe ever)
 
 - **No multi-monitor support**: it renders on whatever output the compositor gives it;
   you can't pick a specific screen or set different videos per monitor.
@@ -122,7 +122,7 @@ Pull requests are welcome if any of this bothers you enough to fix it.
 
 ## Performance
 
-Tested on my single-monitor(1920x1200@60hz) Arch Linux setup with VAAPI enabled.
+Tested on my single-monitor(1920x1200@60hz) Arch Linux setup on debug profile with VAAPI enabled.
 
 Sample file:
 
