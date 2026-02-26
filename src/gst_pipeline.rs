@@ -23,6 +23,10 @@ pub struct Pipeline {
     bus: gst::Bus,
     /// `true` when VAAPI was unavailable and the software path is active.
     is_software: bool,
+    /// Reference to the volume element for runtime volume control.
+    volume_element: Option<gst::Element>,
+    /// Original volume setting for unmuting.
+    original_volume: f64,
 }
 
 impl Pipeline {
@@ -180,6 +184,8 @@ impl Pipeline {
             appsink,
             bus,
             is_software: false,
+            volume_element: Some(vol.clone()),
+            original_volume: effective_volume,
         })
     }
 
@@ -291,6 +297,8 @@ impl Pipeline {
             appsink,
             bus,
             is_software: true,
+            volume_element: Some(vol.clone()),
+            original_volume: effective_volume,
         }
     }
 
@@ -374,6 +382,18 @@ impl Pipeline {
     pub fn resume(&self) {
         if let Err(e) = self.pipeline.set_state(gst::State::Playing) {
             eprintln!("q6w: failed to resume pipeline: {e:?}");
+        }
+    }
+
+    pub fn mute(&self) {
+        if let Some(ref vol) = self.volume_element {
+            vol.set_property("volume", 0.0);
+        }
+    }
+
+    pub fn unmute(&self) {
+        if let Some(ref vol) = self.volume_element {
+            vol.set_property("volume", self.original_volume);
         }
     }
 

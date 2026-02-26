@@ -37,10 +37,14 @@ pub struct State {
     pub buf_h: i32,
     pub configured: bool,
 
-    // Maps foreign-toplevel ObjectId → was_fullscreen_active
-    toplevel_states: HashMap<ObjectId, bool>,
+    // Maps foreign-toplevel ObjectId → (was_fullscreen_active, was_active_or_maximized)
+    toplevel_states: HashMap<ObjectId, (bool, bool)>,
     pub fullscreen_count: i32,
     pub paused_for_fs: bool,
+
+    // Window activity tracking for audio muting
+    pub active_or_maximized_count: i32,
+    pub muted_for_windows: bool,
 
     pub running: bool,
 }
@@ -59,6 +63,8 @@ impl State {
             toplevel_states: HashMap::new(),
             fullscreen_count: 0,
             paused_for_fs: false,
+            active_or_maximized_count: 0,
+            muted_for_windows: false,
             running: true,
         }
     }
@@ -117,6 +123,22 @@ impl State {
         }
         if self.fullscreen_count == 0 && self.paused_for_fs {
             self.paused_for_fs = false;
+        }
+    }
+
+    fn on_window_active_enter(&mut self) {
+        self.active_or_maximized_count += 1;
+        if self.active_or_maximized_count == 1 && !self.muted_for_windows {
+            self.muted_for_windows = true;
+        }
+    }
+
+    fn on_window_active_leave(&mut self) {
+        if self.active_or_maximized_count > 0 {
+            self.active_or_maximized_count -= 1;
+        }
+        if self.active_or_maximized_count == 0 && self.muted_for_windows {
+            self.muted_for_windows = false;
         }
     }
 }
@@ -257,11 +279,17 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for State {
                     u32::from_ne_bytes(c.try_into().unwrap())
                         == zwlr_foreign_toplevel_handle_v1::State::Activated as u32
                 });
+                let is_maximized = raw.chunks_exact(4).any(|c| {
+                    u32::from_ne_bytes(c.try_into().unwrap())
+                        == zwlr_foreign_toplevel_handle_v1::State::Maximized as u32
+                });
                 let is_fs_active = is_fullscreen && is_activated;
-                let was_fs_active = state
+                let is_active_or_max = is_activated || is_maximized;
+
+                let (was_fs_active, was_active_or_max) = state
                     .toplevel_states
-                    .insert(id, is_fs_active)
-                    .unwrap_or(false);
+                    .insert(id, (is_fs_active, is_active_or_max))
+                    .unwrap_or((false, false));
 
                 if is_fs_active && !was_fs_active {
                     state.on_fullscreen_enter();
@@ -269,12 +297,22 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for State {
                 if !is_fs_active && was_fs_active {
                     state.on_fullscreen_leave();
                 }
+
+                if is_active_or_max && !was_active_or_max {
+                    state.on_window_active_enter();
+                }
+                if !is_active_or_max && was_active_or_max {
+                    state.on_window_active_leave();
+                }
             }
             zwlr_foreign_toplevel_handle_v1::Event::Closed => {
-                if let Some(was_fs) = state.toplevel_states.remove(&id)
-                    && was_fs
-                {
-                    state.on_fullscreen_leave();
+                if let Some((was_fs, was_active)) = state.toplevel_states.remove(&id) {
+                    if was_fs {
+                        state.on_fullscreen_leave();
+                    }
+                    if was_active {
+                        state.on_window_active_leave();
+                    }
                 }
             }
             _ => {}

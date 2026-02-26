@@ -44,6 +44,10 @@ struct Args {
     #[arg(long, value_name = "VOLUME", default_value_t = 1.0)]
     volume: f32,
 
+    /// Mute audio when any window is focused or maximized (requires --audio)
+    #[arg(long)]
+    mute_on_window: bool,
+
     /// Target framerate limit (e.g. 30). Drops frames to hit the limit.
     #[arg(long, value_name = "FPS")]
     fps: Option<i32>,
@@ -199,6 +203,7 @@ fn main() {
     pipeline.play();
 
     let mut was_paused = false;
+    let mut was_muted = false;
 
     loop {
         pipeline.with_latest_frame(|data, _w, _h| renderer.upload_and_render(data));
@@ -213,6 +218,18 @@ fn main() {
                 pipeline.pause();
             } else {
                 pipeline.resume();
+            }
+        }
+
+        // Handle audio muting when windows are focused/maximized (opt-in)
+        if args.mute_on_window && enable_audio {
+            if state.muted_for_windows != was_muted {
+                was_muted = state.muted_for_windows;
+                if was_muted {
+                    pipeline.mute();
+                } else {
+                    pipeline.unmute();
+                }
             }
         }
 
