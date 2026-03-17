@@ -15,7 +15,7 @@ out there did it quite the way I wanted. It works on any compositor that support
 | Layer      | What happens                                                                                                                                                |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Decode** | GStreamer decodes video in background threads. VAAPI hardware decoding is used automatically when available; software fallback otherwise.                   |
-| **Upload** | Decoded frames are mapped directly from the GstBuffer and written to a GPU texture via wgpu — no `Vec` allocation, no CPU-side copy.                        |
+| **Upload** | Decoded frames are mapped directly from the GstBuffer and written to a GPU texture via wgpu no `Vec` allocation, no CPU-side copy.                        |
 | **Render** | A full-screen quad is drawn onto a `wlr-layer-shell` surface using wgpu (Vulkan or OpenGL backend). A WGSL fragment shader handles the BGRA → RGBA swizzle. |
 
 ## Dependencies
@@ -98,7 +98,7 @@ q6w --file <VIDEO>
 ### Examples
 
 ```sh
-# basic — play a video as wallpaper
+# basic  play a video as wallpaper
 q6w --file ~/Videos/wallpaper.mp4
 
 # with audio at half volume
@@ -139,7 +139,7 @@ everything. Here's what it _doesn't_ do (yet, or maybe ever)
   and start a new one.
 - **No image wallpapers**: video only. Use `swaybg` or similar for static images.
 - **No X11**: Wayland only, and specifically compositors with `zwlr_layer_shell_v1`.
-- **No graceful handling of GPU loss** — if your GPU resets, q6w will crash.
+- **No graceful handling of GPU loss**  if your GPU resets, q6w will crash.
 - **Software decoding above 1080p is blocked by default**: CPU and memory usage can
   get extreme. You can override this with `--no-fallback-guard`, but don't say I
   didn't warn you.
