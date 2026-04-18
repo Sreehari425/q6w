@@ -226,7 +226,7 @@ fn main() {
                 was_paused_fs = state.paused_for_fs;
                 if was_paused_fs {
                     pipeline.pause();
-                } else if !state.paused_for_windows {
+                } else if !args.pause_on_window || !state.paused_for_windows {
                     pipeline.resume();
                 }
             }
